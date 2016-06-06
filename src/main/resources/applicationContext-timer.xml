@@ -2,7 +2,7 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:tx="http://www.springframework.org/schema/tx"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/aop 
         http://www.springframework.org/schema/aop/spring-aop-3.0.xsd 
         http://www.springframework.org/schema/beans 
@@ -12,7 +12,9 @@
         http://www.springframework.org/schema/mvc 
         http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd 
         http://www.springframework.org/schema/tx 
-        http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
+        http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+	    http://www.springframework.org/schema/task
+        http://www.springframework.org/schema/task/spring-task-3.0.xsd">
 
 	<!-- 第一种 Quartz -->
 	<!-- 定时任务实现类 -->
@@ -26,7 +28,7 @@
 		class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
 		<property name="jobDetail" ref="quartzJob" />
 		<property name="startDelay" value="0" /><!-- 调度工厂实例化后，经过0秒开始执行调度 -->
-		<property name="repeatInterval" value="2000" /><!-- 每2秒调度一次 -->
+		<property name="repeatInterval" value="60000" /><!-- 每60秒调度一次 -->
 	</bean>
 
 	<!-- 定时间点调用 -->
@@ -46,21 +48,21 @@
 		<property name="targetMethod" value="doJob" />
 		<property name="concurrent" value="false" /><!-- 作业不并发调度 -->
 	</bean>
-	
-	<!-- 周期调用 -->
-    <bean id="jobSimpleTrigger"
-        class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
-        <property name="jobDetail" ref="job" />
-        <property name="startDelay" value="0" /><!-- 调度工厂实例化后，经过0秒开始执行调度 -->
-        <property name="repeatInterval" value="2000" /><!-- 每2秒调度一次 -->
-    </bean>
 
-    <!-- 定时间点调用 -->
-    <bean id="jobCronTrigger"
-        class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
-        <property name="jobDetail" ref="job" />
-        <property name="cronExpression" value="0 0 12 * * ?" /><!-- 每天12:00运行一次 -->
-    </bean>
+	<!-- 周期调用 -->
+	<bean id="jobSimpleTrigger"
+		class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
+		<property name="jobDetail" ref="job" />
+		<property name="startDelay" value="0" /><!-- 调度工厂实例化后，经过0秒开始执行调度 -->
+		<property name="repeatInterval" value="60000" /><!-- 每60秒调度一次 -->
+	</bean>
+
+	<!-- 定时间点调用 -->
+	<bean id="jobCronTrigger"
+		class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail" ref="job" />
+		<property name="cronExpression" value="0 0 12 * * ?" /><!-- 每天12:00运行一次 -->
+	</bean>
 
 
 	<!-- 配置调度工厂 -->
@@ -69,10 +71,55 @@
 			<list>
 				<ref bean="quartzJobSimpleTrigger" />
 				<ref bean="quartzJobCronTrigger" />
-				
+
 				<ref bean="jobSimpleTrigger" />
-                <ref bean="jobCronTrigger" />
+				<ref bean="jobCronTrigger" />
 			</list>
 		</property>
 	</bean>
+
+
+	<!-- 第三种 轻量级spring task -->
+	<bean id="task" class="com.demo.timer.Task"></bean>
+	<task:scheduled-tasks>
+		<!-- cron：指定cron表达式 -->
+		<!-- fixedDelay：上一个任务完成到下一个任务开始的间隔，单位是毫秒 -->
+		<!-- fixedRate：  上一个任务开始到下一个任务开始的间隔，单位是毫秒 -->
+		<task:scheduled ref="task" method="doTask" fixed-delay="60000" />
+	</task:scheduled-tasks>
+
+	<!-- 通过注解形式实现spring task -->
+	<bean id="task2" class="com.demo.timer.Task2"></bean>
+	<task:annotation-driven scheduler="qbScheduler" mode="proxy"/>
+    <task:scheduler id="qbScheduler" pool-size="10"/>   
+    
+    
+    <!-- 
+    cronExpression的配置说明，具体使用以及参数请百度google
+	字段   允许值   允许的特殊字符
+	秒    0-59    , - * /
+	分    0-59    , - * /
+	小时    0-23    , - * /
+	日期    1-31    , - * ? / L W C
+	月份    1-12 或者 JAN-DEC    , - * /
+	星期    1-7 或者 SUN-SAT    , - * ? / L C #
+	年（可选）    留空, 1970-2099    , - * / 
+	- 区间  
+	* 通配符  
+	? 你不想设置那个字段
+	下面只例出几个式子
+	 
+	CRON表达式    含义 
+	"0 0 12 * * ?"    每天中午十二点触发 
+	"0 15 10 ? * *"    每天早上10：15触发 
+	"0 15 10 * * ?"    每天早上10：15触发 
+	"0 15 10 * * ? *"    每天早上10：15触发 
+	"0 15 10 * * ? 2005"    2005年的每天早上10：15触发 
+	"0 * 14 * * ?"    每天从下午2点开始到2点59分每分钟一次触发 
+	"0 0/5 14 * * ?"    每天从下午2点开始到2：55分结束每5分钟一次触发 
+	"0 0/5 14,18 * * ?"    每天的下午2点至2：55和6点至6点55分两个时间段内每5分钟一次触发 
+	"0 0-5 14 * * ?"    每天14:00至14:05每分钟一次触发 
+	"0 10,44 14 ? 3 WED"    三月的每周三的14：10和14：44触发 
+	"0 15 10 ? * MON-FRI"    每个周一、周二、周三、周四、周五的10：15触发 
+	 -->
 </beans>
