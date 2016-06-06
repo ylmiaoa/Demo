@@ -127,5 +127,17 @@
             <artifactId>entitymapper</artifactId>
             <version>1.0.0</version>
         </dependency>
+        
+        <!-- Spring定时任务QuartzJobBean引用包 -->
+		<dependency>
+		    <groupId>org.springframework</groupId>
+		    <artifactId>spring-context-support</artifactId>
+		    <version>4.2.4.RELEASE</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.quartz-scheduler</groupId>
+		    <artifactId>quartz</artifactId>
+		    <version>2.2.1</version>
+		</dependency>
 	</dependencies>
 </project>
